@@ -173,13 +173,36 @@ ${trkpts}    </trkseg>
     this.currentViewingRoute = route;
     const modal = document.getElementById('modal-sports-card');
     const canvas = document.getElementById('sports-card-canvas');
+    const inputRider = document.getElementById('card-custom-rider-name');
     if (!modal || !canvas) return;
 
+    // Pre-fill rider name from garage
+    let initialName = 'Michael XC Rider';
+    try {
+      const g = localStorage.getItem('bike_garage');
+      if (g) {
+        const parsed = JSON.parse(g);
+        if (parsed.riderName) initialName = parsed.riderName;
+      }
+    } catch (e) {}
+
+    if (inputRider) {
+      inputRider.value = initialName;
+    }
+
     modal.classList.remove('hidden');
-    this.renderSportsCardOnCanvas(canvas, route);
+    this.renderSportsCardOnCanvas(canvas, route, initialName);
   }
 
-  renderSportsCardOnCanvas(canvas, route) {
+  updateCustomCardRiderName() {
+    const input = document.getElementById('card-custom-rider-name');
+    const canvas = document.getElementById('sports-card-canvas');
+    if (input && canvas && this.currentViewingRoute) {
+      this.renderSportsCardOnCanvas(canvas, this.currentViewingRoute, input.value.trim());
+    }
+  }
+
+  renderSportsCardOnCanvas(canvas, route, customRiderName = null) {
     const ctx = canvas.getContext('2d');
     const width = 1080;
     const height = 1350;
@@ -197,6 +220,10 @@ ${trkpts}    </trkseg>
       const g = localStorage.getItem('bike_garage');
       if (g) garage = Object.assign(garage, JSON.parse(g));
     } catch (e) {}
+
+    const riderDisplayName = customRiderName !== null && customRiderName !== undefined && customRiderName.trim() !== ''
+      ? customRiderName.trim()
+      : (garage.riderName || 'Rider MTB');
 
     // 1. OLED Pure Black Background
     ctx.fillStyle = '#070A12';
@@ -262,7 +289,7 @@ ${trkpts}    </trkseg>
 
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold 30px "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(`${garage.riderName}`, 100, 260);
+    ctx.fillText(`${riderDisplayName}`, 100, 260);
 
     ctx.fillStyle = '#F97316';
     ctx.font = 'bold 28px "Segoe UI", Roboto, sans-serif';
@@ -466,26 +493,43 @@ ${trkpts}    </trkseg>
   }
 
   // -------------------------------------------------------------
-  // Share App with Friends & QR Code
+  // Share App with Friends & QR Code (Personalized with User Name)
   // -------------------------------------------------------------
   openShareModal() {
     const modal = document.getElementById('modal-share-app');
     const qrContainer = document.getElementById('qrcode-container');
+    const inputSender = document.getElementById('share-sender-name');
     if (!modal || !qrContainer) return;
 
     modal.classList.remove('hidden');
     qrContainer.innerHTML = '';
 
+    // Pre-fill user name from garage if available
+    let defaultName = 'Michael XC';
+    try {
+      const g = localStorage.getItem('bike_garage');
+      if (g) {
+        const parsed = JSON.parse(g);
+        if (parsed.riderName) defaultName = parsed.riderName;
+      }
+    } catch (e) {}
+
+    if (inputSender) {
+      if (!inputSender.value) {
+        inputSender.value = defaultName;
+      }
+    }
+
+    this.updateShareMessagePreview();
+
     const currentUrl = window.location.href;
-    const urlDisplay = document.getElementById('share-url-text');
-    if (urlDisplay) urlDisplay.innerText = currentUrl;
 
     // Generate QR Code
     if (typeof QRCode !== 'undefined') {
       new QRCode(qrContainer, {
         text: currentUrl,
-        width: 180,
-        height: 180,
+        width: 160,
+        height: 160,
         colorDark: '#070A12',
         colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.M
@@ -493,19 +537,53 @@ ${trkpts}    </trkseg>
     }
   }
 
-  shareAppNative() {
+  getSenderName() {
+    const input = document.getElementById('share-sender-name');
+    return input && input.value.trim() ? input.value.trim() : 'Tu compañero de ruta';
+  }
+
+  updateShareMessagePreview() {
+    const name = this.getSenderName();
+    const previewEl = document.getElementById('share-message-preview');
+    const qrSenderEl = document.getElementById('share-qr-sender');
+
+    if (previewEl) {
+      previewEl.innerText = `¡Hola! ${name} te comparte Bike-M: Ciclocomputador GPS, telemetría deportiva y horómetro de taller para MTB. ¡Instálala gratis en tu teléfono!`;
+    }
+    if (qrSenderEl) {
+      qrSenderEl.innerText = name;
+    }
+  }
+
+  shareViaWhatsApp() {
+    const name = this.getSenderName();
     const currentUrl = window.location.href;
+    const message = `¡Hola! ${name} te comparte Bike-M: Ciclocomputador GPS, telemetría deportiva y horómetro de taller para MTB By Michael NB-γ.\n\nInstálala gratis directamente en tu teléfono aquí:\n${currentUrl}`;
+    
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+
+    if (window.BikeM_App) {
+      window.BikeM_App.showToast(`Compartiendo invitación de ${name} por WhatsApp`);
+    }
+  }
+
+  shareAppNative() {
+    const name = this.getSenderName();
+    const currentUrl = window.location.href;
+    const shareText = `¡Hola! ${name} te comparte Bike-M: Ciclocomputador GPS y horómetro de mantenimiento para MTB. By Michael NB-γ`;
+
     if (navigator.share) {
       navigator.share({
-        title: 'Bike-M: Ciclocomputador & Taller MTB',
-        text: 'Instala gratis la app Bike-M para telemetría MTB y horómetro de mantenimiento. By Michael NB-γ',
+        title: 'Bike-M // MTB Telemetry & Workshop',
+        text: shareText,
         url: currentUrl
       }).catch(() => {});
     } else {
       // Fallback copy to clipboard
-      navigator.clipboard.writeText(currentUrl).then(() => {
+      navigator.clipboard.writeText(`${shareText}\n${currentUrl}`).then(() => {
         if (window.BikeM_App) {
-          window.BikeM_App.showToast('Enlace copiado al portapapeles');
+          window.BikeM_App.showToast(`Enlace copiado con el nombre: ${name}`);
         }
       });
     }

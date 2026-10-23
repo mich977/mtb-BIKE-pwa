@@ -693,6 +693,15 @@
         </button>
       </div>
 
+      <!-- Nombre del Rider Editable en la Tarjeta -->
+      <div class="w-full text-left bg-[#070A12] p-2.5 rounded-2xl border border-gray-800">
+        <label class="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Nombre del Rider en la Tarjeta:</label>
+        <div class="relative">
+          <input type="text" id="card-custom-rider-name" oninput="window.BikeM_History.updateCustomCardRiderName()" class="w-full bg-[#0D121F] border border-gray-700 focus:border-emerald-500 rounded-xl px-3 py-1.5 text-xs text-white font-bold pl-8 focus:outline-none" placeholder="Tu nombre...">
+          <span class="absolute left-2.5 top-1.5 text-emerald-400 text-xs">🚴</span>
+        </div>
+      </div>
+
       <!-- Preview Canvas -->
       <canvas id="sports-card-canvas" class="w-full rounded-2xl border border-gray-800 shadow-xl bg-black"></canvas>
 
@@ -710,27 +719,59 @@
   </div>
 
   <!-- Modal 6: Compartir App con Amigos & QR -->
-  <div id="modal-share-app" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="bg-[#0D121F] border border-emerald-500/40 rounded-3xl p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
+  <div id="modal-share-app" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3">
+    <div class="bg-[#0D121F] border border-emerald-500/40 rounded-3xl p-5 max-w-xs sm:max-w-sm w-full text-center space-y-3.5 shadow-2xl max-h-[94vh] overflow-y-auto no-scrollbar">
       <div>
-        <h3 class="text-sm font-black text-white">Instalar Bike-M en Otro Teléfono</h3>
-        <p class="text-xs text-gray-400 mt-1">Escanea el código QR con la cámara de tu teléfono Android para abrir e instalar la app limpia.</p>
+        <h3 class="text-sm font-black text-white">Compartir Bike-M</h3>
+        <p class="text-[11px] text-gray-400 mt-0.5">Envía la app a tus amigos ciclistas o escanea el código QR.</p>
+      </div>
+
+      <!-- Nombre del Remitente Personalizado -->
+      <div class="text-left bg-[#070A12] p-2.5 rounded-2xl border border-gray-800">
+        <label class="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Tu Nombre o Apodo (para el mensaje):</label>
+        <div class="relative">
+          <input type="text" id="share-sender-name" oninput="window.BikeM_History.updateShareMessagePreview()" class="w-full bg-[#0D121F] border border-gray-700 focus:border-emerald-500 rounded-xl px-3 py-1.5 text-xs text-white font-bold pl-8 focus:outline-none" placeholder="Tu nombre o apodo...">
+          <span class="absolute left-2.5 top-1.5 text-emerald-400 text-xs">👤</span>
+        </div>
+      </div>
+
+      <!-- Mensaje a Enviar Preview -->
+      <div class="text-left bg-[#070A12] border border-gray-800/80 rounded-xl p-2.5 text-[11px]">
+        <span class="text-gray-500 text-[9px] uppercase font-bold block mb-0.5">Vista previa del mensaje:</span>
+        <p id="share-message-preview" class="text-gray-300 italic text-[11px] leading-tight">
+          Cargando mensaje...
+        </p>
       </div>
 
       <!-- QR Code Container -->
-      <div class="bg-white p-3 rounded-2xl mx-auto inline-block shadow-[0_0_20px_rgba(16,185,129,0.25)]">
-        <div id="qrcode-container" class="w-[180px] h-[180px] flex items-center justify-center"></div>
+      <div class="bg-white p-2.5 rounded-2xl mx-auto inline-block shadow-[0_0_20px_rgba(16,185,129,0.25)]">
+        <div id="qrcode-container" class="w-[160px] h-[160px] flex items-center justify-center"></div>
       </div>
 
-      <div class="text-[10px] text-gray-500 break-all px-2" id="share-url-text"></div>
-
-      <div class="flex items-center gap-2 pt-1 text-xs">
-        <button onclick="document.getElementById('modal-share-app').classList.add('hidden')" class="flex-1 py-2 bg-gray-800 text-gray-300 font-bold rounded-xl">Cerrar</button>
-        <button onclick="window.BikeM_History.shareAppNative()" class="flex-1 py-2 bg-emerald-500 text-black font-black rounded-xl">ENVIAR ENLACE</button>
+      <div class="text-[11px] text-gray-400">
+        Recomendado por: <span id="share-qr-sender" class="text-emerald-400 font-bold">Michael XC</span>
       </div>
 
-      <div class="text-[10px] text-emerald-400 font-semibold pt-1">
-        By Michael NB-γ
+      <!-- Action Buttons -->
+      <div class="space-y-2 pt-1 text-xs">
+        <!-- WhatsApp Button -->
+        <button onclick="window.BikeM_History.shareViaWhatsApp()" class="w-full py-2.5 bg-[#25D366] hover:bg-[#20ba59] text-black font-black rounded-xl flex items-center justify-center gap-2 shadow-[0_0_12px_rgba(37,211,102,0.3)] active:scale-95 transition-all">
+          <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.632.062-1.99-.481-1.282-.511-2.122-1.802-2.186-1.887-.064-.085-.515-.688-.515-1.312 0-.624.327-.932.443-1.058.117-.126.257-.157.342-.157.085 0 .17.001.244.005.078.004.182-.03.285.218.106.255.361.881.393.945.032.064.053.138.01.223-.043.085-.064.138-.128.213-.064.075-.134.167-.192.224-.064.064-.131.133-.056.261.075.128.334.551.716.892.492.439.907.575 1.035.639.128.064.202.053.277-.032.075-.085.32-.372.405-.5.085-.128.17-.106.287-.064.117.043.746.352.874.415.128.064.213.096.244.149.032.053.032.309-.112.714zM12 2C6.477 2 2 6.477 2 12c0 1.891.524 3.66 1.434 5.176L2 22l4.981-1.395A9.957 9.957 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18c-1.637 0-3.167-.492-4.444-1.336l-.319-.208-2.957.828.845-2.883-.228-.337A7.954 7.954 0 014 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z"/></svg>
+          COMPARTIR POR WHATSAPP
+        </button>
+
+        <div class="flex items-center gap-2">
+          <button onclick="document.getElementById('modal-share-app').classList.add('hidden')" class="flex-1 py-2 bg-gray-800 text-gray-300 font-bold rounded-xl">
+            Cerrar
+          </button>
+          <button onclick="window.BikeM_History.shareAppNative()" class="flex-1 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-black rounded-xl">
+            MÁS OPCIONES
+          </button>
+        </div>
+      </div>
+
+      <div class="text-[10px] text-gray-500 pt-1">
+        By Michael NB-γ | created by Michael_NB &amp; IA_Gem
       </div>
     </div>
   </div>
