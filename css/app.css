@@ -1,0 +1,133 @@
+/* Bike-M - Ultra OLED Dark Mode Stylesheet */
+/* By Michael NB-γ */
+
+:root {
+  --bg-oled: #070A12;
+  --bg-card: #0D121F;
+  --bg-card-sub: #080B14;
+  --neon-green: #10B981;
+  --racing-orange: #F97316;
+  --alert-yellow: #F59E0B;
+  --danger-red: #EF4444;
+  --cyber-blue: #38BDF8;
+  --text-muted: #94A3B8;
+  --border-subtle: #1E293B;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+input, textarea, select {
+  user-select: text;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-oled);
+  color: #FFFFFF;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden; /* App-like feel, sub-containers scroll */
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-oled);
+}
+::-webkit-scrollbar-thumb {
+  background: #1E293B;
+  border-radius: 4px;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Glove Friendly Tactile Buttons */
+.btn-tactile {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: all 0.15s ease-out;
+  border-radius: 1rem;
+}
+.btn-tactile:active {
+  transform: scale(0.97);
+}
+
+/* Neon Glow Effects */
+.glow-green {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.35);
+}
+.glow-orange {
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.35);
+}
+.glow-red {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+}
+
+/* Speed Giant Typography */
+.speed-number {
+  font-family: "SF Pro Display", -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.85;
+}
+
+/* Metric Value tabular nums */
+.metric-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Leaflet Dark Customizations */
+.leaflet-container {
+  background-color: #070A12 !important;
+  font-family: inherit;
+}
+.leaflet-bar a {
+  background-color: #0D121F !important;
+  color: #10B981 !important;
+  border-color: #1E293B !important;
+}
+.leaflet-bar a:hover {
+  background-color: #1E293B !important;
+}
+
+/* Rider Pulse Pin */
+.rider-gps-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Bottom Safe Area Padding for Android Gesture Navigation */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+.safe-top {
+  padding-top: env(safe-area-inset-top, 8px);
+}
+
+/* Subtle Animated Dot */
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+.pulse-dot {
+  animation: pulseDot 2s infinite ease-in-out;
+}

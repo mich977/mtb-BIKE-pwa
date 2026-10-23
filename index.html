@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-[#070A12]">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070A12">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Bike-M: PWA Ciclocomputador Offline, Telemetría MTB y Horómetro de Taller. By Michael NB-γ">
+  <title>Bike-M // MTB Telemetry & Workshop</title>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icons/bike-logo.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+
+  <!-- Tailwind CSS (via CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet CSS & JS (Local Assets) -->
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <script src="vendor/leaflet/leaflet.js"></script>
+
+  <!-- QRCode Library (Local Asset) -->
+  <script src="vendor/qrcode.min.js"></script>
+
+  <!-- Custom App CSS -->
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body class="h-full flex flex-col bg-[#070A12] text-white select-none overflow-hidden">
+
+  <!-- PWA Install Banner (Android) -->
+  <div id="pwa-install-banner" class="hidden bg-gradient-to-r from-emerald-950 via-gray-900 to-emerald-950 border-b border-emerald-500/40 px-3 py-2 flex items-center justify-between z-50">
+    <div class="flex items-center gap-2">
+      <span class="text-emerald-400 text-lg">⚡</span>
+      <span class="text-xs font-semibold text-gray-200">Instala Bike-M para pantalla completa</span>
+    </div>
+    <button id="btn-pwa-install" class="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs rounded-lg active:scale-95 transition-all">
+      INSTALAR
+    </button>
+  </div>
+
+  <!-- HEADER BAR -->
+  <header class="bg-[#0A0E17] border-b border-gray-800/80 px-4 py-2.5 safe-top flex-shrink-0 z-30 shadow-lg">
+    <div class="flex items-center justify-between">
+      <!-- Logo & App Name -->
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center font-black text-black text-base shadow-[0_0_12px_rgba(16,185,129,0.4)]">
+          γ
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <h1 class="text-sm font-black tracking-wider text-white">BIKE-M</h1>
+            <span class="text-[9px] uppercase font-bold tracking-widest px-1.5 py-0.2 rounded bg-orange-950/80 text-orange-400 border border-orange-500/40">MTB XC</span>
+          </div>
+          <!-- Dynamic Rider & Bike Badge -->
+          <div id="header-rider-bike" class="text-[11px] text-gray-400 truncate max-w-[190px] sm:max-w-[280px]">
+            <!-- Injected by garage.js -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Sello Obligatorio de Autor Destacado -->
+      <div class="text-right">
+        <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.25)]">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-[11px] font-black tracking-wide text-emerald-300">By Michael NB-γ</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Strip: GPS Signal, WakeLock, Network, Battery -->
+    <div class="flex items-center justify-between mt-2 pt-1.5 border-t border-gray-800/50 text-[10px]">
+      <div class="flex items-center gap-2">
+        <span id="header-gps-badge" class="font-bold px-2 py-0.5 rounded bg-gray-900 text-gray-400 border border-gray-800">
+          GPS: Standby
+        </span>
+        <span id="wakelock-status-badge" class="hidden font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-500/40">
+          PANTALLA ACTIVA
+        </span>
+        <span id="auto-pause-indicator" class="hidden font-bold px-2 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-500/40 animate-pulse">
+          AUTO-PAUSA
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="header-network-badge" class="font-bold px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-400 border border-emerald-500/30">
+          ONLINE
+        </span>
+        <span id="header-battery-badge" class="font-bold text-gray-400">
+          🔋 --%
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN SCROLLABLE CONTENT AREA -->
+  <main class="flex-1 overflow-y-auto relative bg-[#070A12] no-scrollbar">
+
+    <!-- ============================================================== -->
+    <!-- TAB 1: CICLOCOMPUTADOR (DASHBOARD EN VIVO)                     -->
+    <!-- ============================================================== -->
+    <section id="panel-ciclocomputador" class="tab-panel p-4 space-y-4 max-w-lg mx-auto pb-24">
+
+      <!-- Standby Control Panel (Initial State) -->
+      <div id="standby-control-panel" class="space-y-3">
+        <button onclick="window.BikeM_App.startRoute()" class="w-full btn-tactile bg-emerald-500 hover:bg-emerald-400 text-black font-black text-lg rounded-2xl shadow-[0_0_25px_rgba(16,185,129,0.45)] border-2 border-emerald-300 flex items-center justify-center gap-3 py-4 active:scale-98 transition-all">
+          <svg class="w-7 h-7 text-black fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <span>INICIAR RUTA</span>
+        </button>
+
+        <!-- Quick actions row in standby: Auto-pause toggle & Demo simulation -->
+        <div class="flex items-center justify-between gap-2 px-1">
+          <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+            <input type="checkbox" id="toggle-autopause" class="w-4 h-4 rounded text-emerald-500 bg-gray-900 border-gray-700 focus:ring-emerald-500">
+            <span>Auto-Pausa (&lt; 2.5 km/h)</span>
+          </label>
+
+          <button id="btn-toggle-demo" onclick="window.BikeM_Simulation.toggleDemo()" class="text-xs font-semibold px-3 py-1.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-gray-300 border border-gray-800 flex items-center gap-1.5 transition-all">
+            🎮 Simular Ruta (Demo)
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Control Panel (Hidden during Standby) -->
+      <div id="active-control-panel" class="hidden space-y-2">
+        <div class="grid grid-cols-2 gap-2.5">
+          <button id="btn-pause-route" onclick="window.BikeM_App.togglePauseResume()" class="btn-tactile bg-amber-500 hover:bg-amber-400 text-black font-black text-sm rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.3)] flex items-center justify-center gap-2 py-3 active:scale-95 transition-all">
+            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            <span>PAUSAR</span>
+          </button>
+
+          <button onclick="window.BikeM_App.openFinishRouteModal()" class="btn-tactile bg-red-600 hover:bg-red-500 text-white font-black text-sm rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.35)] flex items-center justify-center gap-2 py-3 active:scale-95 transition-all">
+            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+            <span>FINALIZAR Y GUARDAR</span>
+          </button>
+        </div>
+
+        <div id="demo-active-badge" class="hidden text-center">
+          <span class="text-[11px] font-bold text-orange-400 bg-orange-950/80 border border-orange-500/50 px-3 py-1 rounded-full animate-pulse inline-block">
+            ⚠️ Modo Simulación MTB Activo (Inyectando telemetría)
+          </span>
+        </div>
+      </div>
+
+      <!-- MAIN SPEED DISPLAY (HUGE OLED CLUSTER) -->
+      <div class="bg-gradient-to-b from-[#0D121F] to-[#070A12] border-2 border-emerald-500/40 rounded-3xl p-6 text-center shadow-[0_0_35px_rgba(16,185,129,0.15)] relative overflow-hidden">
+        <div class="text-xs uppercase font-extrabold tracking-widest text-emerald-400 flex items-center justify-center gap-1.5 mb-1">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+          VELOCIDAD INSTANTÁNEA
+        </div>
+
+        <div class="flex items-baseline justify-center gap-2 my-2">
+          <span id="telemetry-speed-giant" class="speed-number text-7xl sm:text-8xl font-black text-white tracking-tighter">0.0</span>
+          <span class="text-lg sm:text-xl font-black text-emerald-400">km/h</span>
+        </div>
+
+        <div class="text-[11px] text-gray-500 font-medium">
+          Media móvil de 3 puntos • Filtro de ruido Haversine
+        </div>
+      </div>
+
+      <!-- 8 METRICS GRID -->
+      <div class="grid grid-cols-2 gap-2.5">
+        <!-- Tiempo Efectivo -->
+        <div class="bg-[#0D121F] border border-gray-800 rounded-2xl p-3">
+          <div class="text-[10px] text-gray-400 uppercase font-bold tracking-wider flex items-center gap-1">
+            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Tiempo Efectivo
+          </div>
+          <div id="metric-time" class="metric-value text-2xl font-black text-emerald-400 mt-1">00:00:00</div>
+          <div class="text-[10px] text-gray-500">Excluye paradas</div>
+        </div>
+
+        <!-- Distancia -->
+        <div class="bg-[#0D121F] border border-gray-800 rounded-2xl p-3">
+          <div class="text-[10px] text-gray-400 uppercase font-bold tracking-wider flex items-center gap-1">
+            <svg class="w-3.5 h-3.5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            Distancia
+          </div>
+          <div id="metric-dist" class="metric-value text-2xl font-black text-orange-400 mt-1">0.00 km</div>
+          <div class="text-[10px] text-gray-500">Haversine GPS</div>
+        </div>
+
+        <!-- Velocidad Promedio -->
+        <div class="bg-[#0D121F] border border-gray-800 rounded-2xl p-3">
+          <div class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Vel. Promedio</div>
+          <div id="metric-avg-speed" class="metric-value text-xl font-extrabold text-white mt-1">0.0 km/h</div>
+          <div class="text-[10px] text-gray-500">Distancia / Tiempo activo</div>
+        </div>
+
+        <!-- Velocidad Máxima -->
+        <div class="bg-[#0D121F] border border-gray-800 rounded-2xl p-3">
+          <div class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Vel. Máxima</div>
+          <div id="metric-max-speed" class="metric-value text-xl font-extrabold text-white mt-1">0.0 km/h</div>
+          <div class="text-[10px] text-gray-500">Pico registrado</div>
+        </div>
+
+        <!-- Altitud Actual -->
+        <div class="bg-[#0D121F] border border-gray-800 rounded-2xl p-3">
+          <div class="text-[10px] text-gray-400 uppercase font-bold tracking-wider flex items-center gap-1">
+            <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+            Altitud Actual
+          </div>
+          <div id="metric-altitude" class="metric-value text-xl font-extrabold text-sky-400 mt-1">0 m</div>
+          <div class="text-[10px] text-gray-500">m.s.n.m.</div>
+        </div>
+
+        <!-- Desnivel Positivo -->
+        <div class="bg-[#0D121F] border border-gray-800 rounded-2xl p-3">
+          <div class="text-[10px] text-gray-400 uppercase font-bold tracking-wider flex items-center gap-1">
+            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+            Desnivel Positivo
+          </div>
+          <div id="metric-elevation" class="metric-value text-xl font-extrabold text-emerald-400 mt-1">+0 m</div>
+          <div class="text-[10px] text-gray-500">Filtro Histéresis &ge;3m</div>
+        </div>
+
+        <!-- Pendiente Instantánea -->
+        <div class="bg-[#0D121F] border border-gray-800 rounded-2xl p-3">
+          <div class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Pendiente</div>
+          <div id="metric-slope" class="metric-value text-xl font-extrabold text-amber-400 mt-1">0.0%</div>
+          <div class="text-[10px] text-gray-500">&Delta;alt / &Delta;dist</div>
+        </div>
+
+        <!-- Calorías Quemadas -->
+        <div class="bg-[#0D121F] border border-gray-800 rounded-2xl p-3">
+          <div class="text-[10px] text-gray-400 uppercase font-bold tracking-wider flex items-center gap-1">
+            <svg class="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
+            Calorías
+          </div>
+          <div id="metric-calories" class="metric-value text-xl font-extrabold text-red-400 mt-1">0 kcal</div>
+          <div class="text-[10px] text-gray-500">Potencia &amp; Pendiente</div>
+        </div>
+      </div>
+
+      <!-- Pie de Página Principal -->
+      <footer class="pt-6 pb-2 text-center border-t border-gray-800/70 mt-6">
+        <p class="text-xs font-semibold text-gray-300 tracking-wide">
+          created by <span class="text-emerald-400 font-bold">Michael_NB</span> &amp; <span class="text-orange-400 font-bold">IA_Gem</span>
+        </p>
+        <p class="text-[10px] text-gray-500 mt-1">Bike-M // Telemetría Deportiva MTB &amp; Horómetro de Taller</p>
+      </footer>
+
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- TAB 2: MAPA OFFLINE (GPS & TRACK)                              -->
+    <!-- ============================================================== -->
+    <section id="panel-mapa" class="tab-panel hidden h-full flex flex-col relative pb-20">
+
+      <!-- Map Toolbar Floating Overlay -->
+      <div class="absolute top-2 left-2 right-2 z-[1000] flex flex-col gap-2">
+        <div class="bg-[#0D121F]/90 backdrop-blur-md border border-gray-800 rounded-2xl p-2.5 shadow-xl flex items-center justify-between gap-2">
+          <!-- Layer Selector -->
+          <div class="flex items-center gap-1 bg-[#070A12] p-1 rounded-xl border border-gray-800 text-xs">
+            <button data-map-layer="topo" onclick="window.BikeM_Map.setLayer('topo')" class="px-2.5 py-1 rounded-lg font-bold transition-all text-emerald-400 bg-gray-800/80 border border-emerald-500/30">Topográfico MTB</button>
+            <button data-map-layer="osm" onclick="window.BikeM_Map.setLayer('osm')" class="px-2.5 py-1 rounded-lg font-semibold text-gray-400 hover:text-white hover:bg-gray-800 transition-all">Calles</button>
+            <button data-map-layer="sat" onclick="window.BikeM_Map.setLayer('sat')" class="px-2.5 py-1 rounded-lg font-semibold text-gray-400 hover:text-white hover:bg-gray-800 transition-all">Satelital</button>
+          </div>
+
+          <!-- Offline / Online Status Badge -->
+          <div id="map-offline-badge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-500/40 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> ONLINE (Caché Activo)
+          </div>
+        </div>
+
+        <!-- Download visible zone bar -->
+        <div class="bg-[#0D121F]/90 backdrop-blur-md border border-gray-800 rounded-xl px-3 py-1.5 shadow-lg flex items-center justify-between text-xs">
+          <span id="offline-tile-count" class="text-gray-400 font-medium">0 tiles en memoria</span>
+          <button onclick="openDownloadZoneModal()" class="px-2.5 py-1 bg-emerald-600/30 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/50 rounded-lg font-bold flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Descargar Zona Offline
+          </button>
+        </div>
+      </div>
+
+      <!-- Leaflet Map Canvas Container -->
+      <div id="map-container" class="w-full h-full flex-1 z-0"></div>
+
+      <!-- Floating Center Map Button -->
+      <button id="btn-center-map" onclick="window.BikeM_Map.centerOnRider()" class="absolute bottom-24 right-4 z-[1000] w-12 h-12 rounded-full bg-emerald-500 text-black border-2 border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)] flex items-center justify-center active:scale-90 transition-all" title="Centrar en mi posición">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+      </button>
+
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- TAB 3: TALLER Y HORÓMETRO DE MANTENIMIENTO                     -->
+    <!-- ============================================================== -->
+    <section id="panel-taller" class="tab-panel hidden p-4 space-y-4 max-w-lg mx-auto pb-24">
+
+      <!-- Master Lifetime Odometer Card -->
+      <div class="bg-gradient-to-br from-[#0D121F] to-[#0A0E17] border border-emerald-500/40 rounded-3xl p-5 shadow-xl relative overflow-hidden">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">⏱️</span>
+            <div>
+              <h3 class="text-sm font-black text-white uppercase tracking-wider">Odómetro Maestro Histórico</h3>
+              <p class="text-[11px] text-gray-400">Total acumulado de la bicicleta</p>
+            </div>
+          </div>
+          <button onclick="window.BikeM_Workshop.openEditMasterOdometerModal()" class="text-xs px-2.5 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 rounded-lg flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            Editar Inicial
+          </button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 text-center pt-2 border-t border-gray-800">
+          <div class="bg-[#070A12] p-2.5 rounded-2xl border border-gray-900">
+            <span class="text-[10px] text-gray-500 font-bold uppercase block">Horas Servicio</span>
+            <span id="odo-total-hours" class="text-base font-black text-emerald-400 block mt-0.5">0h 00m</span>
+          </div>
+          <div class="bg-[#070A12] p-2.5 rounded-2xl border border-gray-900">
+            <span class="text-[10px] text-gray-500 font-bold uppercase block">Km Totales</span>
+            <span id="odo-total-km" class="text-base font-black text-orange-400 block mt-0.5">0.0 km</span>
+          </div>
+          <div class="bg-[#070A12] p-2.5 rounded-2xl border border-gray-900">
+            <span class="text-[10px] text-gray-500 font-bold uppercase block">Desnivel +</span>
+            <span id="odo-total-elevation" class="text-base font-black text-white block mt-0.5">+0 m</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Components Horometers List (5 items) -->
+      <div>
+        <div class="flex items-center justify-between mb-2 px-1">
+          <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Control de Componentes (Horómetro)</h4>
+          <span class="text-[10px] text-emerald-400 font-medium">Sincronizado con cada ruta</span>
+        </div>
+
+        <div id="components-container" class="space-y-3">
+          <!-- Injected dynamically by workshop.js -->
+        </div>
+      </div>
+
+      <!-- Workshop Journal / Bitácora de Taller -->
+      <div class="pt-4 border-t border-gray-800">
+        <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">Bitácora de Trabajos y Mantenimientos</h4>
+        <div id="workshop-logs-list" class="space-y-2">
+          <!-- Injected dynamically by workshop.js -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- TAB 4: MI GARAJE (FICHA TÉCNICA)                               -->
+    <!-- ============================================================== -->
+    <section id="panel-garaje" class="tab-panel hidden p-4 space-y-4 max-w-lg mx-auto pb-24">
+
+      <div class="bg-[#0D121F] border border-gray-800 rounded-3xl p-5 shadow-xl">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h3 class="text-sm font-black text-white uppercase tracking-wider">Ficha Técnica de la Bici</h3>
+            <p class="text-xs text-gray-400">Datos persistentes en tu dispositivo</p>
+          </div>
+          <span class="text-xl">🔧</span>
+        </div>
+
+        <!-- Live Preview Card -->
+        <div id="garage-summary-badge" class="bg-[#0A0E17] border border-gray-800 rounded-2xl p-3 mb-4">
+          <!-- Injected by garage.js -->
+        </div>
+
+        <form id="form-garage" onsubmit="event.preventDefault(); window.BikeM_Garage.saveFromForm();" class="space-y-3 text-xs">
+          <!-- Rider Profile -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-gray-400 font-semibold mb-1">Nombre / Apodo Rider</label>
+              <input type="text" id="garage-rider-name" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium focus:border-emerald-500 focus:outline-none" placeholder="Ej. Michael XC">
+            </div>
+            <div>
+              <label class="block text-gray-400 font-semibold mb-1">Peso Rider (kg)</label>
+              <input type="number" step="0.5" id="garage-rider-weight" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium focus:border-emerald-500 focus:outline-none" placeholder="75">
+            </div>
+          </div>
+
+          <!-- Bike Details -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-gray-400 font-semibold mb-1">Marca y Modelo Bici</label>
+              <input type="text" id="garage-bike-model" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium focus:border-emerald-500 focus:outline-none" placeholder="Specialized Epic">
+            </div>
+            <div>
+              <label class="block text-gray-400 font-semibold mb-1">Peso Bici (kg)</label>
+              <input type="number" step="0.1" id="garage-bike-weight" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium focus:border-emerald-500 focus:outline-none" placeholder="11.8">
+            </div>
+          </div>
+
+          <!-- Frame Type & Shock -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-gray-400 font-semibold mb-1">Tipo de Cuadro</label>
+              <select id="garage-frame-type" onchange="window.BikeM_Garage.toggleShockFieldVisibility()" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium focus:border-emerald-500 focus:outline-none">
+                <option value="full">Doble Suspensión (Full)</option>
+                <option value="hardtail">Rígida (Hardtail)</option>
+              </select>
+            </div>
+            <div id="garage-shock-container">
+              <label class="block text-gray-400 font-semibold mb-1">Amortiguador Trasero (Shock)</label>
+              <input type="text" id="garage-shock" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium focus:border-emerald-500 focus:outline-none" placeholder="RockShox SIDLuxe">
+            </div>
+          </div>
+
+          <!-- Fork -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-gray-400 font-semibold mb-1">Horquilla (Marca/Modelo)</label>
+              <input type="text" id="garage-fork" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium focus:border-emerald-500 focus:outline-none" placeholder="RockShox SID Ultimate">
+            </div>
+            <div>
+              <label class="block text-gray-400 font-semibold mb-1">Recorrido Horquilla (mm)</label>
+              <input type="number" id="garage-fork-travel" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium focus:border-emerald-500 focus:outline-none" placeholder="120">
+            </div>
+          </div>
+
+          <!-- Drivetrain -->
+          <div>
+            <label class="block text-gray-400 font-semibold mb-1">Transmisión / Desviador (Velocidades)</label>
+            <input type="text" id="garage-drivetrain" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium focus:border-emerald-500 focus:outline-none" placeholder="SRAM GX Eagle AXS 1x12">
+          </div>
+
+          <!-- Front Tire & PSI -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-gray-400 font-semibold mb-1">Neumático Delantero</label>
+              <input type="text" id="garage-front-tire" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium focus:border-emerald-500 focus:outline-none" placeholder="Maxxis Ground Control 2.35">
+            </div>
+            <div>
+              <label class="block text-gray-400 font-semibold mb-1">PSI Delantero</label>
+              <input type="number" step="0.5" id="garage-front-psi" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium focus:border-emerald-500 focus:outline-none" placeholder="21">
+            </div>
+          </div>
+
+          <!-- Rear Tire & PSI -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-gray-400 font-semibold mb-1">Neumático Trasero</label>
+              <input type="text" id="garage-rear-tire" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium focus:border-emerald-500 focus:outline-none" placeholder="Maxxis Fast Trak 2.35">
+            </div>
+            <div>
+              <label class="block text-gray-400 font-semibold mb-1">PSI Trasero</label>
+              <input type="number" step="0.5" id="garage-rear-psi" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium focus:border-emerald-500 focus:outline-none" placeholder="23">
+            </div>
+          </div>
+
+          <!-- Save Button -->
+          <button type="submit" class="w-full btn-tactile bg-emerald-500 hover:bg-emerald-400 text-black font-black text-sm rounded-xl py-3 mt-4 active:scale-95 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+            GUARDAR FICHA TÉCNICA
+          </button>
+        </form>
+      </div>
+
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- TAB 5: CLIMA, HISTORIAL Y COMPARTIR APP                        -->
+    <!-- ============================================================== -->
+    <section id="panel-clima-historial" class="tab-panel hidden p-4 space-y-5 max-w-lg mx-auto pb-24">
+
+      <!-- Open-Meteo Weather Widget Container -->
+      <div id="weather-content-container">
+        <!-- Rendered by weather.js -->
+        <div class="text-center py-6 text-gray-400 text-xs">Cargando pronóstico meteorológico...</div>
+      </div>
+
+      <!-- Share App with Friends Card & QR Code -->
+      <div class="bg-gradient-to-r from-[#0D121F] via-[#0A0E17] to-[#0D121F] border border-emerald-500/30 rounded-3xl p-4 shadow-xl">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-sm font-bold text-white">Compartir App con Amigos</h4>
+            <p class="text-xs text-gray-400">Instalación directa en Android vía QR o WhatsApp</p>
+          </div>
+          <button onclick="window.BikeM_History.openShareModal()" class="px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+            Compartir / QR
+          </button>
+        </div>
+      </div>
+
+      <!-- Historial de Rutas -->
+      <div>
+        <div class="flex items-center justify-between mb-2 px-1">
+          <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Historial de Salidas</h4>
+          <span class="text-[10px] text-gray-500">Guardado en IndexedDB</span>
+        </div>
+
+        <div id="history-routes-list" class="space-y-3">
+          <!-- Injected by history.js -->
+        </div>
+      </div>
+
+      <!-- Backup & Restore JSON -->
+      <div class="bg-[#0D121F] border border-gray-800 rounded-2xl p-4 text-xs">
+        <h4 class="font-bold text-white mb-1">Copia de Seguridad (100% Local y Privada)</h4>
+        <p class="text-gray-400 mb-3 text-[11px]">Exporta o restaura tus rutas, configuraciones de garaje y bitácora de taller.</p>
+        <div class="flex items-center gap-2">
+          <button onclick="window.BikeM_History.exportJSONBackup()" class="flex-1 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 font-semibold rounded-xl text-center">
+            Exportar JSON
+          </button>
+          <label class="flex-1 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 font-semibold rounded-xl text-center cursor-pointer">
+            Importar JSON
+            <input type="file" accept=".json" onchange="window.BikeM_History.importJSONBackup(this)" class="hidden">
+          </label>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ============================================================== -->
+  <!-- BOTTOM NAVIGATION BAR (5 TABS)                                 -->
+  <!-- ============================================================== -->
+  <nav class="bg-[#0A0E17]/95 backdrop-blur-md border-t border-gray-800/90 py-1.5 px-2 safe-bottom flex-shrink-0 z-40">
+    <div class="max-w-md mx-auto grid grid-cols-5 gap-1">
+      <!-- 1. Ciclocomputador -->
+      <button id="nav-ciclocomputador" class="flex flex-col items-center justify-center py-1 text-emerald-400 hover:text-emerald-300 transition-colors">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        <span class="text-[10px] font-bold tracking-tight">En Vivo</span>
+        <span class="active-dot w-1 h-1 bg-emerald-400 rounded-full mt-0.5"></span>
+      </button>
+
+      <!-- 2. Mapa -->
+      <button id="nav-mapa" class="flex flex-col items-center justify-center py-1 text-gray-500 hover:text-gray-300 transition-colors">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+        <span class="text-[10px] font-bold tracking-tight">Mapa</span>
+        <span class="active-dot w-1 h-1 bg-emerald-400 rounded-full mt-0.5 opacity-0"></span>
+      </button>
+
+      <!-- 3. Taller -->
+      <button id="nav-taller" class="flex flex-col items-center justify-center py-1 text-gray-500 hover:text-gray-300 transition-colors">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
+        <span class="text-[10px] font-bold tracking-tight">Taller</span>
+        <span class="active-dot w-1 h-1 bg-emerald-400 rounded-full mt-0.5 opacity-0"></span>
+      </button>
+
+      <!-- 4. Mi Garaje -->
+      <button id="nav-garaje" class="flex flex-col items-center justify-center py-1 text-gray-500 hover:text-gray-300 transition-colors">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+        <span class="text-[10px] font-bold tracking-tight">Garaje</span>
+        <span class="active-dot w-1 h-1 bg-emerald-400 rounded-full mt-0.5 opacity-0"></span>
+      </button>
+
+      <!-- 5. Clima & Historial -->
+      <button id="nav-clima-historial" class="flex flex-col items-center justify-center py-1 text-gray-500 hover:text-gray-300 transition-colors">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+        <span class="text-[10px] font-bold tracking-tight">Clima/Rutas</span>
+        <span class="active-dot w-1 h-1 bg-emerald-400 rounded-full mt-0.5 opacity-0"></span>
+      </button>
+    </div>
+
+    <!-- Pie de Barra Inferior -->
+    <div class="text-center pt-1 border-t border-gray-900 mt-1">
+      <span class="text-[9px] text-gray-400 font-medium tracking-wide">created by <strong class="text-emerald-400 font-bold">Michael_NB</strong> &amp; <strong class="text-orange-400 font-bold">IA_Gem</strong></span>
+    </div>
+  </nav>
+
+  <!-- ============================================================== -->
+  <!-- MODALS                                                         -->
+  <!-- ============================================================== -->
+
+  <!-- Modal 1: Finalizar y Guardar Ruta -->
+  <div id="modal-finish-route" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#0D121F] border border-gray-700 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
+      <div class="text-center">
+        <div class="w-12 h-12 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full flex items-center justify-center mx-auto mb-2 text-xl">
+          🏁
+        </div>
+        <h3 class="text-base font-black text-white">¿Finalizar y Guardar Ruta?</h3>
+        <p class="text-xs text-gray-400">Tus horas y kilómetros se sincronizarán al Odómetro de Taller</p>
+      </div>
+
+      <!-- Quick stats summary in modal -->
+      <div class="grid grid-cols-2 gap-2 text-center text-xs">
+        <div class="bg-[#070A12] p-2 rounded-xl border border-gray-800">
+          <span class="text-gray-500 block">Distancia</span>
+          <span id="finish-modal-dist" class="font-extrabold text-orange-400 text-sm">0.0 km</span>
+        </div>
+        <div class="bg-[#070A12] p-2 rounded-xl border border-gray-800">
+          <span class="text-gray-500 block">Tiempo Pedaleo</span>
+          <span id="finish-modal-time" class="font-extrabold text-emerald-400 text-sm">00:00:00</span>
+        </div>
+        <div class="bg-[#070A12] p-2 rounded-xl border border-gray-800">
+          <span class="text-gray-500 block">Desnivel</span>
+          <span id="finish-modal-ele" class="font-extrabold text-white text-sm">+0 m</span>
+        </div>
+        <div class="bg-[#070A12] p-2 rounded-xl border border-gray-800">
+          <span class="text-gray-500 block">Calorías</span>
+          <span id="finish-modal-kcal" class="font-extrabold text-amber-400 text-sm">0 kcal</span>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-400 mb-1">Nombre de la Salida</label>
+        <input type="text" id="finish-modal-route-name" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none" placeholder="Ej. Trail Cerro Colorado">
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <button onclick="window.BikeM_App.closeFinishRouteModal()" class="flex-1 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-xs">
+          Cancelar
+        </button>
+        <button onclick="window.BikeM_App.confirmSaveRoute()" class="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+          GUARDAR RUTA
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Registrar Mantenimiento de Componente -->
+  <div id="modal-workshop-reset" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#0D121F] border border-gray-700 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
+      <div>
+        <h3 id="modal-reset-comp-name" class="text-sm font-bold text-white">Mantenimiento de Componente</h3>
+        <p id="modal-reset-comp-hours" class="text-xs text-emerald-400 font-semibold mt-0.5">0.0 hrs de uso</p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-400 mb-1">Nota del Trabajo Realizado (Opcional)</label>
+        <textarea id="input-reset-note" rows="3" class="w-full bg-[#070A12] border border-gray-700 rounded-xl p-2.5 text-xs text-white focus:border-emerald-500 focus:outline-none" placeholder="Ej. Cambio de retenes, líquido de suspensión 5wt, purgado..."></textarea>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="document.getElementById('modal-workshop-reset').classList.add('hidden')" class="flex-1 py-2 rounded-xl bg-gray-800 text-gray-300 font-bold text-xs">
+          Cancelar
+        </button>
+        <button id="btn-confirm-reset" class="flex-1 py-2 rounded-xl bg-emerald-500 text-black font-black text-xs">
+          CONFIRMAR (RESET 0h)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Editar Odómetro Maestro Inicial -->
+  <div id="modal-edit-master-odo" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#0D121F] border border-gray-700 rounded-3xl p-5 max-w-sm w-full space-y-3 shadow-2xl text-xs">
+      <h3 class="text-sm font-black text-white">Ajustar Odómetro Maestro</h3>
+      <p class="text-gray-400 text-[11px]">Si tu bicicleta ya tenía uso antes de usar Bike-M, ingresa sus valores previos.</p>
+
+      <div>
+        <label class="block text-gray-400 mb-1">Horas Totales</label>
+        <input type="number" step="0.1" id="input-edit-odo-hours" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white">
+      </div>
+      <div>
+        <label class="block text-gray-400 mb-1">Kilómetros Totales</label>
+        <input type="number" step="0.1" id="input-edit-odo-km" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white">
+      </div>
+      <div>
+        <label class="block text-gray-400 mb-1">Desnivel Acumulado (+m)</label>
+        <input type="number" id="input-edit-odo-ele" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white">
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <button onclick="document.getElementById('modal-edit-master-odo').classList.add('hidden')" class="flex-1 py-2 bg-gray-800 text-gray-300 font-bold rounded-xl">Cancelar</button>
+        <button id="btn-save-master-odo" class="flex-1 py-2 bg-emerald-500 text-black font-black rounded-xl">GUARDAR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Descargar Zona Offline -->
+  <div id="modal-download-zone" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#0D121F] border border-gray-700 rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl text-xs">
+      <div class="text-center">
+        <span class="text-2xl">📥</span>
+        <h3 class="text-sm font-black text-white mt-1">Descargar Zona para Uso Offline</h3>
+        <p class="text-gray-400 text-[11px] mt-1">Se guardarán en la memoria de tu dispositivo los mapas de la zona visible actual para los niveles de zoom 13 al 16.</p>
+      </div>
+
+      <div id="download-progress-container" class="hidden space-y-2">
+        <div class="flex items-center justify-between text-[11px]">
+          <span id="download-progress-text" class="text-emerald-400 font-bold">Descargando...</span>
+          <span id="download-progress-pct" class="text-white font-black">0%</span>
+        </div>
+        <div class="w-full h-2.5 bg-gray-900 rounded-full overflow-hidden border border-gray-800">
+          <div id="download-progress-bar" class="h-full bg-emerald-500 transition-all duration-200" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <button onclick="closeDownloadZoneModal()" class="flex-1 py-2 bg-gray-800 text-gray-300 font-bold rounded-xl">Cerrar</button>
+        <button id="btn-start-zone-download" onclick="startOfflineZoneDownload()" class="flex-1 py-2 bg-emerald-500 text-black font-black rounded-xl shadow-[0_0_10px_rgba(16,185,129,0.3)]">INICIAR DESCARGA</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Tarjeta Deportiva en Imagen (Canvas Export) -->
+  <div id="modal-sports-card" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-3">
+    <div class="max-w-xs sm:max-w-sm w-full bg-[#0D121F] border border-gray-800 rounded-3xl p-4 flex flex-col items-center gap-3 max-h-[92vh] overflow-y-auto no-scrollbar shadow-2xl">
+      <div class="w-full flex items-center justify-between">
+        <h3 class="text-xs font-black text-emerald-400 uppercase tracking-wider">Tarjeta Deportiva de Resumen</h3>
+        <button onclick="document.getElementById('modal-sports-card').classList.add('hidden')" class="text-gray-400 hover:text-white p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Preview Canvas -->
+      <canvas id="sports-card-canvas" class="w-full rounded-2xl border border-gray-800 shadow-xl bg-black"></canvas>
+
+      <div class="w-full grid grid-cols-2 gap-2 text-xs pt-1">
+        <button onclick="window.BikeM_History.downloadCardPNG()" class="py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-bold flex items-center justify-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Descargar PNG
+        </button>
+        <button onclick="window.BikeM_History.shareCard()" class="py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+          Compartir
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 6: Compartir App con Amigos & QR -->
+  <div id="modal-share-app" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-[#0D121F] border border-emerald-500/40 rounded-3xl p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
+      <div>
+        <h3 class="text-sm font-black text-white">Instalar Bike-M en Otro Teléfono</h3>
+        <p class="text-xs text-gray-400 mt-1">Escanea el código QR con la cámara de tu teléfono Android para abrir e instalar la app limpia.</p>
+      </div>
+
+      <!-- QR Code Container -->
+      <div class="bg-white p-3 rounded-2xl mx-auto inline-block shadow-[0_0_20px_rgba(16,185,129,0.25)]">
+        <div id="qrcode-container" class="w-[180px] h-[180px] flex items-center justify-center"></div>
+      </div>
+
+      <div class="text-[10px] text-gray-500 break-all px-2" id="share-url-text"></div>
+
+      <div class="flex items-center gap-2 pt-1 text-xs">
+        <button onclick="document.getElementById('modal-share-app').classList.add('hidden')" class="flex-1 py-2 bg-gray-800 text-gray-300 font-bold rounded-xl">Cerrar</button>
+        <button onclick="window.BikeM_History.shareAppNative()" class="flex-1 py-2 bg-emerald-500 text-black font-black rounded-xl">ENVIAR ENLACE</button>
+      </div>
+
+      <div class="text-[10px] text-emerald-400 font-semibold pt-1">
+        By Michael NB-γ
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Toast Notification -->
+  <div id="global-toast" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 opacity-0 pointer-events-none translate-y-4 transition-all duration-300 bg-gray-900/95 border border-emerald-500/50 text-emerald-400 px-4 py-2 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2 backdrop-blur-md">
+    <span id="toast-message">Notificación</span>
+  </div>
+
+  <!-- Modal Script Helpers for Download Zone -->
+  <script>
+    function openDownloadZoneModal() {
+      document.getElementById('modal-download-zone').classList.remove('hidden');
+    }
+    function closeDownloadZoneModal() {
+      document.getElementById('modal-download-zone').classList.add('hidden');
+    }
+    async function startOfflineZoneDownload() {
+      const btn = document.getElementById('btn-start-zone-download');
+      const progressContainer = document.getElementById('download-progress-container');
+      const progressText = document.getElementById('download-progress-text');
+      const progressPct = document.getElementById('download-progress-pct');
+      const progressBar = document.getElementById('download-progress-bar');
+
+      btn.disabled = true;
+      btn.classList.add('opacity-50');
+      progressContainer.classList.remove('hidden');
+
+      try {
+        await window.BikeM_Map.downloadVisibleZone((cur, total, pct) => {
+          progressText.innerText = `Descargando tile ${cur} de ${total}...`;
+          progressPct.innerText = `${pct}%`;
+          progressBar.style.width = `${pct}%`;
+        });
+
+        progressText.innerText = '✅ Zona descargada con éxito';
+        setTimeout(() => {
+          closeDownloadZoneModal();
+          btn.disabled = false;
+          btn.classList.remove('opacity-50');
+          progressContainer.classList.add('hidden');
+          window.BikeM_App.showToast('✅ Mapa descargado para uso offline');
+        }, 1200);
+      } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+        btn.classList.remove('opacity-50');
+      }
+    }
+  </script>
+
+  <!-- Application Logic Modules -->
+  <script src="js/db.js"></script>
+  <script src="js/telemetry.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/workshop.js"></script>
+  <script src="js/garage.js"></script>
+  <script src="js/weather.js"></script>
+  <script src="js/history.js"></script>
+  <script src="js/simulation.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
