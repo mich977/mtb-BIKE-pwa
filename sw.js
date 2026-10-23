@@ -1,5 +1,5 @@
 // Bike-M Service Worker - By Michael NB-γ
-const CACHE_NAME = 'bike-m-core-v1.1';
+const CACHE_NAME = 'bike-m-core-v1.2';
 
 const PRECACHE_ASSETS = [
   './',
@@ -21,6 +21,8 @@ const PRECACHE_ASSETS = [
   './vendor/leaflet/images/marker-icon-2x.png',
   './vendor/leaflet/images/marker-shadow.png',
   './vendor/qrcode.min.js',
+  './vendor/jspdf.umd.min.js',
+  './vendor/jspdf.plugin.autotable.min.js',
   './icons/bike-logo.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',

@@ -67,7 +67,9 @@ $$P_{\text{mecánica}} = (F_{\text{rodadura}} + F_{\text{aerodinámica}} + F_{\t
   4. Recarga Líquido Tubeless (60h)
   5. Revisión Cadena y Pastillas de Freno (80h)
 - **Vinculación Dinámica:** Cada tarjeta muestra los nombres y modelos configurados en *Mi Garaje*.
-- **Botón "Registrar Servicio (Reset 0h)" y Bitácora de Taller:** Restablece las horas a `0.0 h` y guarda el registro con fecha, horas de la bici y notas del trabajo realizado.
+- **Botón "Registrar Servicio (Reset 0h)" y Bitácora Permanente:** Restablece las horas a `0.0 h` y guarda el registro acumulativo con fecha, horas previas, odómetro de la bici, número de servicio y notas del trabajo realizado.
+- **Botón "+ Registro":** Permite asentar mantenimientos manuales de taller (pastillas, rodamientos, centrado, etc.).
+- **Descarga de Bitácora Oficial en PDF (Formato A4):** Genera y descarga un informe técnico certificado en PDF estándar A4 (210x297mm) con el perfil de la bicicleta, estado vigente de horómetros, historial cronológico de servicios y el sello oficial **"By Michael NB-γ | created by Michael_NB & IA_Gem"**. Funciona 100% offline.
 
 ---
 

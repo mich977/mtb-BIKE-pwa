@@ -24,6 +24,10 @@
   <!-- QRCode Library (Local Asset) -->
   <script src="vendor/qrcode.min.js"></script>
 
+  <!-- jsPDF & AutoTable for A4 PDF Workshop Export (Local Assets) -->
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script src="vendor/jspdf.plugin.autotable.min.js"></script>
+
   <!-- Custom App CSS -->
   <link rel="stylesheet" href="css/app.css">
 </head>
@@ -334,9 +338,25 @@
       </div>
 
       <!-- Workshop Journal / Bitácora de Taller -->
-      <div class="pt-4 border-t border-gray-800">
-        <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">Bitácora de Trabajos y Mantenimientos</h4>
-        <div id="workshop-logs-list" class="space-y-2">
+      <div class="pt-4 border-t border-gray-800 space-y-3">
+        <div class="flex items-center justify-between px-1">
+          <div>
+            <h4 class="text-xs font-bold text-white uppercase tracking-wider">Historial de Mantenimientos</h4>
+            <p class="text-[10px] text-gray-400">Registro permanente posterior a cada reseteo de reloj</p>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button onclick="window.BikeM_Workshop.openManualLogModal()" class="px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 rounded-xl text-xs font-bold flex items-center gap-1 active:scale-95 transition-all" title="Añadir mantenimiento manual">
+              <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <span>+ Registro</span>
+            </button>
+            <button onclick="window.BikeM_Workshop.exportWorkshopPDF()" class="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black rounded-xl text-xs font-black flex items-center gap-1.5 shadow-[0_0_12px_rgba(16,185,129,0.3)] active:scale-95 transition-all" title="Descargar Bitácora Oficial en PDF formato A4">
+              <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              <span>PDF A4</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="workshop-logs-list" class="space-y-2.5">
           <!-- Injected dynamically by workshop.js -->
         </div>
       </div>
@@ -626,6 +646,57 @@
         </button>
         <button id="btn-confirm-reset" class="flex-1 py-2 rounded-xl bg-emerald-500 text-black font-black text-xs">
           CONFIRMAR (RESET 0h)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2B: Añadir Registro Manual a Bitácora -->
+  <div id="modal-manual-workshop-log" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#0D121F] border border-gray-700 rounded-3xl p-5 max-w-sm w-full space-y-3.5 shadow-2xl text-xs">
+      <div>
+        <h3 class="text-sm font-black text-white">Añadir Mantenimiento a la Bitácora</h3>
+        <p class="text-[11px] text-gray-400 mt-0.5">Registra servicios, reparaciones o cambio de repuestos.</p>
+      </div>
+
+      <div>
+        <label class="block text-gray-400 font-bold mb-1">Componente / Sistema:</label>
+        <select id="input-manual-log-comp" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium focus:border-emerald-500 focus:outline-none">
+          <option value="Horquilla">Horquilla de Suspensión</option>
+          <option value="Amortiguador Trasero (Shock)">Amortiguador Trasero (Shock)</option>
+          <option value="Cadena y Transmisión">Cadena y Transmisión</option>
+          <option value="Frenos y Pastillas">Frenos y Pastillas Hidráulicas</option>
+          <option value="Neumáticos y Líquido Tubeless">Neumáticos y Líquido Tubeless</option>
+          <option value="Rodamientos y Mazas">Rodamientos de Maza y Ejes</option>
+          <option value="Juego de Dirección y Caja Pedalier">Dirección y Caja de Centro (Pedalier)</option>
+          <option value="Centrado de Ruedas">Centrado de Ruedas / Rayos</option>
+          <option value="Servicio General / Lavado y Engrase">Servicio General / Lavado y Engrase</option>
+          <option value="Otro">Otro Trabajo Especializado</option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-gray-400 font-bold mb-1">Horas en la Bici:</label>
+          <input type="text" id="input-manual-log-hours" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium" placeholder="Ej. 65.0 hrs">
+        </div>
+        <div>
+          <label class="block text-gray-400 font-bold mb-1">Km en la Bici:</label>
+          <input type="text" id="input-manual-log-km" class="w-full bg-[#070A12] border border-gray-700 rounded-xl px-3 py-2 text-white font-medium" placeholder="Ej. 1200 km">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-gray-400 font-bold mb-1">Trabajo Realizado / Repuestos Nuevos:</label>
+        <textarea id="input-manual-log-note" rows="3" class="w-full bg-[#070A12] border border-gray-700 rounded-xl p-2.5 text-xs text-white focus:border-emerald-500 focus:outline-none" placeholder="Ej. Cambio de pastillas delanteras por Shimano metálicas, purgado de circuito..."></textarea>
+      </div>
+
+      <div class="flex items-center gap-2 pt-1">
+        <button onclick="document.getElementById('modal-manual-workshop-log').classList.add('hidden')" class="flex-1 py-2 rounded-xl bg-gray-800 text-gray-300 font-bold">
+          Cancelar
+        </button>
+        <button onclick="window.BikeM_Workshop.saveManualLogEntry()" class="flex-1 py-2 rounded-xl bg-emerald-500 text-black font-black">
+          GUARDAR REGISTRO
         </button>
       </div>
     </div>
